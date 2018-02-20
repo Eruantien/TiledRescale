@@ -13,12 +13,12 @@ A .net core library for resizing Tiled maps and correctly rescaling data in .Tmx
 ### Using TiledRescale lib
 
 Rescaling with explicit width/height
-```
+```cs
 var rescaler = new TiledRescale.Rescaler();
 var message = rescaler.RescaleMap("map.tmx", 256, 512, null);
 ```
 Rescaling by scale
-```
+```cs
 var rescaler = new TiledRescale.Rescaler();
 var message = rescaler.RescaleMap("map.tmx", null, null, 1.33f);
 ```
@@ -26,12 +26,12 @@ var message = rescaler.RescaleMap("map.tmx", null, null, 1.33f);
 ### Using ConsoleTest app
 
 Recursively target .tmx files in a directory
-```
-dotnet ConsoleTest.dll -d "c:\dev\projects\tmx\testfiles\" --scale 1.33
+```cs
+dotnet ConsoleTest.dll -d "c:\dev\projects\tmx\testfiles" --scale 1.33
 ```
 
 Target a specific file
-```
+```cs
 dotnet ConsoleTest.dll -f "c:\dev\projects\tmx\testfiles\lvl3\map2.tmx" -w 512 -h 512
 ```
 
