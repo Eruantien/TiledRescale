@@ -9,45 +9,50 @@ namespace TiledRescale
 {
 	public class Rescaler
 	{
-		public string RescaleMap(string fileName, int? requiredWidth, int? requiredHeight, float? scale)
+		public RescaleResult RescaleMap(string fileName, int? requiredWidth, int? requiredHeight, float? scale)
 		{
-			string message;
+			var xdoc = XDocument.Load(fileName);
 
-			try
+			var result = ProcessXDoc(xdoc, requiredWidth, requiredHeight, scale);
+
+			if (string.IsNullOrWhiteSpace(result.ErrorMessage))
 			{
-				var xdoc = XDocument.Load(fileName);
-
-				var result = ProcessXDoc(xdoc, requiredWidth, requiredHeight, scale);
-
-				if (result)
-				{
-					xdoc.Save(fileName);
-					message = "Rescaled";
-				}
-				else
-				{
-					message = "Invalid";
-				}
-
-			}
-			catch (Exception ex)
-			{
-				message = ex.ToString();
+				xdoc.Save(fileName);
 			}
 
-			return $"{fileName} - {message}";
+			return result;
 		}
 
-		private bool ProcessXDoc(XContainer xdoc, int? requiredWidth, int? requiredHeight, float? scale)
+		private RescaleResult ProcessXDoc(XContainer xdoc, int? requiredWidth, int? requiredHeight, float? scale)
 		{
+			if (!scale.HasValue && (!requiredWidth.HasValue || !requiredHeight.HasValue))
+			{
+				return new RescaleResult
+				{
+					ErrorMessage = "Require new dimensions or scale - missing both"
+				};
+			}
+
 			var descMap = xdoc.Descendants("map").FirstOrDefault();
 
-			if (descMap == null) return false;
+			if (descMap == null)
+			{
+				return new RescaleResult
+				{
+					ErrorMessage = "Could not find map element in file"
+				};
+			}
 
-			var oldMapWidth = GetFloatValueFromAttribute(descMap.Attribute("width"));
-			var oldMapHeight = GetFloatValueFromAttribute(descMap.Attribute("height"));
+			var oldMapWidth = GetIntValueFromAttribute(descMap.Attribute("width"));
+			var oldMapHeight = GetIntValueFromAttribute(descMap.Attribute("height"));
 
-			if (oldMapWidth == null || oldMapHeight == null) throw new Exception("Map element missing Width / Height");
+			if (oldMapWidth == null || oldMapHeight == null)
+			{
+				return new RescaleResult
+				{
+					ErrorMessage = "Map element missing Width / Height"
+				};
+			}
 
 			float multiplierHorizontal;
 			float multiplierVertical;
@@ -57,23 +62,27 @@ namespace TiledRescale
 				multiplierHorizontal = scale.Value;
 				multiplierVertical = scale.Value;
 			}
-			else if (requiredWidth.HasValue && requiredHeight.HasValue)
+			else
 			{
 				multiplierHorizontal = requiredWidth.Value / (float)oldMapWidth;
 				multiplierVertical = requiredHeight.Value / (float)oldMapHeight;
 			}
-			else
-			{
-				throw new Exception("Require new dimensions or scale - missing both.");
-			}
 
 			AttemptAttributeIntRescale(descMap, "width", multiplierHorizontal);
 			AttemptAttributeIntRescale(descMap, "height", multiplierVertical);
+			var newMapWidth = GetIntValueFromAttribute(descMap.Attribute("width"));
+			var newMapHeight = GetIntValueFromAttribute(descMap.Attribute("height"));
 
 			ProcessLayers(xdoc, multiplierHorizontal, multiplierVertical);
 			ProcessObjectGroups(xdoc, multiplierHorizontal, multiplierVertical);
 
-			return true;
+			return new RescaleResult
+			{
+				OldWidth = oldMapWidth.Value,
+				OldHeight = oldMapWidth.Value,
+				NewWidth = newMapWidth.GetValueOrDefault(),
+				NewHeight = newMapHeight.GetValueOrDefault()
+			};
 		}
 
 		private void ProcessObjectGroups(XContainer xdoc, float multiplierHorizontal, float multiplierVertical)
@@ -204,7 +213,7 @@ namespace TiledRescale
 			var value = GetFloatValueFromAttribute(xAttribute);
 			if (value == null) return;
 
-			var scaledValue = Math.Ceiling(value.Value * multiplier);
+			var scaledValue = (int)Math.Ceiling(value.Value * multiplier);
 
 			xAttribute.Value = scaledValue.ToString(CultureInfo.InvariantCulture);
 		}
@@ -233,5 +242,24 @@ namespace TiledRescale
 
 			return null;
 		}
+
+		private int? GetIntValueFromAttribute(XAttribute xAttribute)
+		{
+			if (int.TryParse(xAttribute.Value, out var intValue))
+			{
+				return intValue;
+			}
+
+			return null;
+		}
+	}
+
+	public class RescaleResult
+	{
+		public string ErrorMessage;
+		public int OldWidth;
+		public int OldHeight;
+		public int NewWidth;
+		public int NewHeight;
 	}
 }

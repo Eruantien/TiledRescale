@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using TiledRescale;
 
 namespace ConsoleTest
@@ -38,13 +39,26 @@ namespace ConsoleTest
 
 			foreach (var fileName in fileNames)
 			{
-				var filePathArray = fileName.Split("\\");
-				var fileNameArray = filePathArray.Last().Split(".");
-				if (!int.TryParse(fileNameArray[0], out var _)) continue;
+				var sb = new StringBuilder($"{fileName} - ");
 
-				var result = rescaler.RescaleMap(fileName, width, height, scale);
+				try
+				{
+					var filePathArray = fileName.Split("\\");
+					var fileNameArray = filePathArray.Last().Split(".");
+					if (!int.TryParse(fileNameArray[0], out var _)) continue;
 
-				Console.WriteLine(result);
+					var result = rescaler.RescaleMap(fileName, width, height, scale);
+
+					sb.Append(!string.IsNullOrWhiteSpace(result.ErrorMessage)
+						? result.ErrorMessage
+						: $"rescaled from [ {result.OldWidth},{result.OldHeight} ] to [ {result.NewWidth},{result.NewHeight} ] ");
+				}
+				catch (Exception ex)
+				{
+					sb.Append(ex);
+				}
+
+				Console.WriteLine(sb.ToString());
 			}
 		}
 
